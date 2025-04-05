@@ -55,6 +55,7 @@ if uploaded_file:
 
         if st.button("🚀 Upload to Azure Blob"):
             try:
+                uploaded_file.seek(0)  # Reset file pointer to beginning before upload
                 blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
                 container_client = blob_service_client.get_container_client(CONTAINER_NAME)
 
@@ -62,6 +63,6 @@ if uploaded_file:
                 blob_client.upload_blob(uploaded_file, overwrite=True)
 
                 st.success("✅ File uploaded successfully!")
-                st.info(f"📂 File path: `{CONTAINER_NAME}/{blob_path}`")
+                st.info(f"📂 File path: `{CONTAINER_NAME}{blob_path}`")
             except Exception as e:
                 st.error(f"❌ Upload failed: {str(e)}")
