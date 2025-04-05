@@ -5,8 +5,8 @@ import pandas as pd
 # ----------------------------
 # Backend Config (edit these)
 # ----------------------------
-AZURE_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=htanalyticalstorage;AccountKey=eA1hPfkB54OYc93yabhkG0YhKIK72PRb2spNydvjLlx27/nmXjyPntgOwT8EKjxTjEBU8FtVLUGD+AStjvrAlQ==;EndpointSuffix=core.windows.net"
-CONTAINER_NAME = "healthtotal"
+AZURE_CONNECTION_STRING = st.secrets["AZURE_CONNECTION_STRING"]
+CONTAINER_NAME = st.secrets["CONTAINER_NAME"]
 BLOB_FOLDER_PATH = "/analytics/"
 # ----------------------------
 
