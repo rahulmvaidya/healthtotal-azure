@@ -58,9 +58,10 @@ if uploaded_file:
                 uploaded_file.seek(0)  # Reset file pointer to beginning before upload
                 blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
                 container_client = blob_service_client.get_container_client(CONTAINER_NAME)
-
                 blob_client = container_client.get_blob_client(blob_path)
-                blob_client.upload_blob(uploaded_file, overwrite=True)
+
+                with st.spinner("⏳ Uploading your file to Azure Blob Storage..."):
+                    blob_client.upload_blob(uploaded_file, overwrite=True)
 
                 st.success("✅ File uploaded successfully!")
                 st.info(f"📂 File path: `{CONTAINER_NAME}{blob_path}`")
