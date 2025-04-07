@@ -2,14 +2,13 @@ import streamlit as st
 from azure.storage.blob import BlobServiceClient
 import datetime
 import pandas as pd
-
+import io
+import chardet
 
 # ----------------------------
 # Password Setup (edit this)
 # ----------------------------
 PASSWORD = "HealthAzureTotal@2025"  # Change this to your own password
-# 
-
 
 # ----------------------------
 # Backend Config (edit these)
@@ -42,11 +41,14 @@ REQUIRED_COLUMNS = [
     "First Source", "Latest Source", "First Publisher", "Latest Publisher", "pk_id", "created_date"
 ]
 
+# ----------------------------
+# Authentication Check
+# ----------------------------
 def check_password():
     def password_entered():
         if st.session_state["password"] == PASSWORD:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Don't store the password
+            del st.session_state["password"]
         else:
             st.session_state["password_correct"] = False
 
@@ -60,36 +62,76 @@ def check_password():
 
 check_password()
 
-
+# ----------------------------
 # UI Setup
+# ----------------------------
 st.set_page_config(page_title="Health Total Analytics - CSV Uploader to Azure Blob", layout="centered")
 st.title("📤 Upload Your CSV File to Azure Blob Storage")
 
+# ----------------------------
+# CSV Template Download
+# ----------------------------
+@st.cache_data
+def generate_template():
+    buffer = io.StringIO()
+    pd.DataFrame(columns=REQUIRED_COLUMNS).to_csv(buffer, index=False)
+    return buffer.getvalue()
+
+st.download_button(
+    label="📥 Download Template CSV",
+    data=generate_template(),
+    file_name="required_template.csv",
+    mime="text/csv"
+)
+
+# ----------------------------
+# File Upload Section
+# ----------------------------
 uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    # Step 1: Read bytes & detect encoding
+    file_bytes = uploaded_file.read()
+    detected_encoding = chardet.detect(file_bytes)["encoding"]
+
+    if not detected_encoding:
+        st.error("❌ Could not detect encoding. Please check your file.")
+        st.stop()
+
+    # Step 2: Read with encoding
+    try:
+        df = pd.read_csv(io.BytesIO(file_bytes), encoding=detected_encoding)
+    except Exception as e:
+        st.error(f"❌ Failed to read the CSV file using encoding `{detected_encoding}`: {str(e)}")
+        st.stop()
+
+    # Step 3: Column check
     missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    found_cols = len(REQUIRED_COLUMNS) - len(missing_cols)
 
     if missing_cols:
-        st.error("❌ Upload blocked. The following required columns are missing:")        
-        st.warning("⚠️ Please login to the database and create below columns in the target table before uploading.")
+        st.error("❌ Upload blocked. The following required columns are missing:")
+        st.info(f"✅ {found_cols} out of {len(REQUIRED_COLUMNS)} required columns found.")
+        st.warning("⚠️ Please login to the database and create the following columns before uploading.")
         st.code("\n".join(missing_cols), language="text")
     else:
-        # Generate filename with timestamp
+        st.success("✅ All required columns are present!")
+        st.subheader("🔍 Preview of Uploaded File")
+        st.dataframe(df.head(5))
+
+        # Step 4: Blob upload
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         blob_filename = f"{uploaded_file.name.split('.')[0]}_{timestamp}.csv"
         blob_path = f"{BLOB_FOLDER_PATH}{blob_filename}"
 
         if st.button("🚀 Upload to Azure Blob"):
             try:
-                uploaded_file.seek(0)  # Reset file pointer to beginning before upload
                 blob_service_client = BlobServiceClient.from_connection_string(AZURE_CONNECTION_STRING)
                 container_client = blob_service_client.get_container_client(CONTAINER_NAME)
                 blob_client = container_client.get_blob_client(blob_path)
 
                 with st.spinner("⏳ Uploading your file to Azure Blob Storage..."):
-                    blob_client.upload_blob(uploaded_file, overwrite=True)
+                    blob_client.upload_blob(io.BytesIO(file_bytes), overwrite=True)
 
                 st.success("✅ File uploaded successfully!")
                 st.info(f"📂 File path: `{CONTAINER_NAME}{blob_path}`")
