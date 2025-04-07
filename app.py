@@ -68,21 +68,6 @@ check_password()
 st.set_page_config(page_title="Health Total Analytics - CSV Uploader to Azure Blob", layout="centered")
 st.title("📤 Upload Your CSV File to Azure Blob Storage")
 
-# ----------------------------
-# CSV Template Download
-# ----------------------------
-@st.cache_data
-def generate_template():
-    buffer = io.StringIO()
-    pd.DataFrame(columns=REQUIRED_COLUMNS).to_csv(buffer, index=False)
-    return buffer.getvalue()
-
-st.download_button(
-    label="📥 Download Template CSV",
-    data=generate_template(),
-    file_name="required_template.csv",
-    mime="text/csv"
-)
 
 # ----------------------------
 # File Upload Section
